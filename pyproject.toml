@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "scikit-xml"
-version = "0.1.2"
+version = "0.1.3"
 maintainers = [
     { name = "Carlo Nicolini", email = "c.nicolini@ipazia.com" },
 ]
@@ -20,9 +20,12 @@ dependencies = [
     "pandas>=1.4.1",
     "scikit-learn>=1.3.2",
     "joblib>=1.3.2",
+    "numba>=0.59.0",
 ]
 
 keywords = [
+    "supervised-classification",
+    "extreme-classification",
     "machine-learning",
     "scikit-learn",
     "data-mining",
