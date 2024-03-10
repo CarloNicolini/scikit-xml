@@ -113,6 +113,7 @@ def f1_at_k_score(
     r = recall_at_k_score(y_true, y_pred, k, propensity_array, propensity_coeff, sort_values)
     return 2*p*r/(p+r)
 
+
 def recall_at_k_score(
     y_true: np.ndarray | sp.csr_matrix | sp.csr_array,
     y_pred: np.ndarray | sp.csr_matrix | sp.csr_array,
