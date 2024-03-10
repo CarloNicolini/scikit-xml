@@ -1,37 +1,36 @@
-from typing import Optional, Tuple, Dict
 
 import numpy as np
 import scipy.sparse as sp
 from numpy.typing import ArrayLike
 from scipy.special import softmax
 from sklearn.metrics import (
-    precision_score,
-    recall_score,
-    f1_score,
     accuracy_score,
+    f1_score,
     hamming_loss,
-    zero_one_loss,
     jaccard_score,
     log_loss,
+    precision_score,
+    recall_score,
+    zero_one_loss,
 )
 
 from ._xc_metrics import (
-    precision,
-    recall,
-    ndcg,
-    psprecision,
-    psndcg,
-    psrecall,
     compute_inv_propensity,
+    ndcg,
+    precision,
+    psndcg,
+    psprecision,
+    psrecall,
+    recall,
 )
 
 
-def precision_at_k(
+def precision_at_k_score(
     y_true: np.ndarray | sp.csr_matrix | sp.csr_array,
     y_pred: np.ndarray | sp.csr_matrix | sp.csr_array,
     k: int = 1,
     propensity_array: np.ndarray | None = None,
-    propensity_coeff: Tuple[float, float] | None = None,
+    propensity_coeff: tuple[float, float] | None = None,
     sort_values: bool = False,
 ) -> float:
     """
@@ -78,12 +77,12 @@ def precision_at_k(
         raise ValueError("Unsupported propensity array type")
 
 
-def f1_at_k(
+def f1_at_k_score(
     y_true: np.ndarray | sp.csr_matrix | sp.csr_array,
     y_pred: np.ndarray | sp.csr_matrix | sp.csr_array,
     k: int = 1,
     propensity_array: np.ndarray | None = None,
-    propensity_coeff: Tuple[float, float] | None = None,
+    propensity_coeff: tuple[float, float] | None = None,
     sort_values: bool = False,
 ) -> float:
     """
@@ -110,16 +109,16 @@ def f1_at_k(
     sort_values:
         whether to s
     """
-    p = precision_at_k(y_true,y_pred,k,propensity_array,propensity_coeff,sort_values)
-    r = recall_at_k(y_true,y_pred,k,propensity_array,propensity_coeff,sort_values)
+    p = precision_at_k_score(y_true, y_pred, k, propensity_array, propensity_coeff, sort_values)
+    r = recall_at_k_score(y_true, y_pred, k, propensity_array, propensity_coeff, sort_values)
     return 2*p*r/(p+r)
 
-def recall_at_k(
+def recall_at_k_score(
     y_true: np.ndarray | sp.csr_matrix | sp.csr_array,
     y_pred: np.ndarray | sp.csr_matrix | sp.csr_array,
     k: int = 1,
     propensity_array: np.ndarray | None = None,
-    propensity_coeff: Tuple[float, float] | None = None,
+    propensity_coeff: tuple[float, float] | None = None,
     sort_values: bool = False,
 ) -> float:
     """
@@ -168,12 +167,12 @@ def recall_at_k(
         raise ValueError("Unsupported propensity array type")
 
 
-def ndcg_at_k(
+def ndcg_at_k_score(
     y_true: np.ndarray | sp.csr_matrix | sp.csr_array,
     y_pred: np.ndarray | sp.csr_matrix | sp.csr_array,
     k: int = 1,
     propensity_array: np.ndarray | None = None,
-    propensity_coeff: Tuple[float, float] | None = None,
+    propensity_coeff: tuple[float, float] | None = None,
     sort_values: bool = False,
 ) -> float:
     """
@@ -346,12 +345,12 @@ def compute_metrics(
             K = kwargs["k"]
             propensity_coeff = kwargs.get("propensity_coeff", None)
             for k in range(1, K + 1):
-                all_metrics[f"ncdg@{k}"] = ndcg_at_k(y_true=y_true, y_pred=y_score, k=k)
-                all_metrics[f"ncdg@{k}"] = ndcg_at_k(y_true=y_true, y_pred=y_score, k=k)
-                all_metrics[f"precision@{k}"] = precision_at_k(
+                all_metrics[f"ncdg@{k}"] = ndcg_at_k_score(y_true=y_true, y_pred=y_score, k=k)
+                all_metrics[f"ncdg@{k}"] = ndcg_at_k_score(y_true=y_true, y_pred=y_score, k=k)
+                all_metrics[f"precision@{k}"] = precision_at_k_score(
                     y_true=y_true, y_pred=y_score, k=k
                 )
-                all_metrics[f"recall@{k}"] = recall_at_k(
+                all_metrics[f"recall@{k}"] = recall_at_k_score(
                     y_true=y_true, y_pred=y_score, k=k
                 )
                 all_metrics[f"f1@{k}"] = (
@@ -362,19 +361,19 @@ def compute_metrics(
                 )
                 # when propensity coefficients also the propensity-scored metrics are computed
                 if propensity_coeff is not None:
-                    all_metrics[f"psncdg@{k}"] = ndcg_at_k(
+                    all_metrics[f"psncdg@{k}"] = ndcg_at_k_score(
                         y_true=y_true,
                         y_pred=y_score,
                         k=k,
                         propensity_coeff=propensity_coeff,
                     )
-                    all_metrics[f"psprecision@{k}"] = precision_at_k(
+                    all_metrics[f"psprecision@{k}"] = precision_at_k_score(
                         y_true=y_true,
                         y_pred=y_score,
                         k=k,
                         propensity_coeff=propensity_coeff,
                     )
-                    all_metrics[f"psrecall@{k}"] = recall_at_k(
+                    all_metrics[f"psrecall@{k}"] = recall_at_k_score(
                         y_true=y_true,
                         y_pred=y_score,
                         k=k,

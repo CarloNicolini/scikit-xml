@@ -1,4 +1,4 @@
-from typing import Tuple, Union
+from typing import Union
 
 import numba as nb
 import numpy as np
@@ -130,14 +130,28 @@ def compatible_shapes(x: SparseOrDenseLike, y: SparseOrDenseLike):
             return len(y["indices"]) == len(y["scores"]) == x.shape[0]
 
 
-def _get_topk_sparse(X: SparseLike, pad_indx: int = 0, k=5):
+def _get_topk_sparse(X: SparseLike, pad_indx: int = 0, pad_val:int=0, k=5):
     """
     Get top-k elements when X is a sparse matrix
+
+    Parameters
+    ----------
+    X: SparseLike
+
+    pad_indx: int
+        Default 0
+    pad_val: int
+        Default 0
+
+    k: int
+        Default 5
     """
+    if not sp.issparse(X):
+        raise TypeError("Only sparse array accepted")
     X = X.tocsr()
     X.sort_indices()
-    pad_indx = X.shape[1]
-    indices = topk(X, k, pad_indx, 0, return_values=False)
+    pad_indx = X.shape[1]  # rows are padded at the end
+    indices = topk(X, k, pad_indx, pad_val=pad_val, return_values=False)
     return indices
 
 
@@ -149,9 +163,10 @@ def _get_topk_array(X: ArrayLike, k: int = 5, sort_values: bool = False):
         values: scores for all labels (like in one-vs-all)
     """
     # indices are given
-    assert X.shape[1] >= k, f"Number of elements in X is < {k}"
+    if X.shape[1] < k:
+        raise ValueError(f"Number of elements in X is < {k}")
     if np.issubdtype(X.dtype, np.integer):
-        assert sorted, "sorted must be true with indices"
+        assert sort_values, "Sorted must be true with indices"
         indices = X[:, :k] if X.shape[1] > k else X
     # values are given
     elif np.issubdtype(X.dtype, np.floating):
@@ -214,7 +229,7 @@ def _get_topk(X: SparseOrDenseLike, pad_indx: int = 0, k=5, sort_values: bool = 
 
 def compute_inv_propensity(labels: SparseLike, A: float, B: float) -> np.ndarray:
     """
-    Computes inverse propernsity as proposed in Jain et al. 16.
+    Computes inverse propensity as proposed in Jain et al. 16.
 
     Arguments:
     ---------
@@ -236,7 +251,12 @@ def compute_inv_propensity(labels: SparseLike, A: float, B: float) -> np.ndarray
     np.ndarray: propensity scores for each label
     """
     num_instances, _ = labels.shape
-    freqs = np.ravel(np.sum(labels, axis=0))
+    if sp.issparse(labels):
+        freqs: np.ndarray = labels.sum(axis=0)
+    elif isinstance(labels, np.ndarray):
+        freqs = np.ravel(np.sum(labels, axis=0))
+    else:
+        raise TypeError("Only numpy array or scipy sparse supported")
     C = (np.log(num_instances) - 1) * np.power(B + 1, A)
     wts = 1.0 + C * np.power(freqs + B, -A)
     return np.ravel(wts)
@@ -253,9 +273,11 @@ def _setup_metric(X, true_labels, inv_psp=None, k=5, sort_values: bool = False):
                 "Unknown type; please pass csr_matrix, np.ndarray or dict."
             )
 
-    assert compatible_shapes(
+    if not compatible_shapes(
         X, true_labels
-    ), "ground truth and prediction matrices must have same shape."
+    ):
+        raise ValueError("Shape mismatch. Ground truth and prediction matrices "
+                         "must have same shape.")
     num_instances, num_labels = true_labels.shape
     indices = _get_topk(X, num_labels, k, sort_values)
     ps_indices = None
@@ -263,8 +285,10 @@ def _setup_metric(X, true_labels, inv_psp=None, k=5, sort_values: bool = False):
         _mat = sp.spdiags(inv_psp, diags=0, m=num_labels, n=num_labels)
         _psp_wtd = _broad_cast(_mat.dot(true_labels.T).T, true_labels)
         ps_indices = _get_topk(_psp_wtd, num_labels, k, False)
-        inv_psp = np.hstack([inv_psp, np.zeros((1))])
+        inv_psp = np.hstack([inv_psp, np.zeros(1)])
 
+    if isinstance(true_labels, np.ndarray):
+        true_labels = sp.csr_matrix(true_labels)
     idx_dtype = true_labels.indices.dtype
     true_labels = sp.csr_matrix(
         (true_labels.data, true_labels.indices, true_labels.indptr),
@@ -279,14 +303,40 @@ def _setup_metric(X, true_labels, inv_psp=None, k=5, sort_values: bool = False):
 
 
 def _eval_flags(indices, true_labels, inv_psp=None):
+    """
+    Compute evaluation flags based on the provided indices and true labels.
+
+    Parameters:
+    ----------
+    indices : array_like
+        Array of shape (N, M) containing indices.
+    true_labels : {array_like, sparse matrix}
+        True labels for evaluation. Should be either a numpy array or a sparse matrix.
+    inv_psp : array_like, optional
+        Inverse propagation matrix for adjusting evaluation flags.
+
+    Returns:
+    -------
+    eval_flags : ndarray
+        Array of evaluation flags computed based on the input parameters.
+
+    Raises:
+    -------
+    ValueError
+        If true_labels is neither a numpy array nor a sparse matrix.
+    """
     if sp.issparse(true_labels):
         nr, nc = indices.shape
         rows = np.repeat(np.arange(nr).reshape(-1, 1), nc)
         eval_flags = true_labels[rows, indices.ravel()].A1.reshape(nr, nc)
-    elif type(true_labels) == np.ndarray:
+    elif isinstance(true_labels, np.ndarray):
         eval_flags = np.take_along_axis(true_labels, indices, axis=-1)
+    else:
+        raise ValueError("true_labels must be a sparse matrix or a numpy array")
+
     if inv_psp is not None:
         eval_flags = np.multiply(inv_psp[indices], eval_flags)
+
     return eval_flags
 
 
@@ -308,7 +358,7 @@ def precision(X, true_labels, k=5, sort_values=False):
         ground truth in sparse or dense format
     k: int, optional (default=5)
         compute precision till k
-    sorted: boolean, optional, default=False
+    sort_values: boolean, optional, default=False
         whether X is already sorted (will skip sorting)
         * used when X is of type dict or np.ndarray (of indices)
         * shape is not checked is X are np.ndarray
@@ -343,7 +393,7 @@ def psprecision(X, true_labels, inv_psp, k=5, sort_values=False):
         propensity scores for each label
     k: int, optional (default=5)
         compute propensity scored precision till k
-    sorted: boolean, optional, default=False
+    sort_values: boolean, optional, default=False
         whether X is already sorted (will skip sorting)
         * used when X is of type dict or np.ndarray (of indices)
         * shape is not checked is X are np.ndarray
@@ -385,7 +435,7 @@ def ndcg(X, true_labels, k=5, sort_values=False):
         ground truth in sparse or dense format
     k: int, optional (default=5)
         compute nDCG till k
-    sorted: boolean, optional, default=False
+    sort_values: boolean, optional, default=False
         whether X is already sorted (will skip sorting)
         * used when X is of type dict or np.ndarray (of indices)
         * shape is not checked is X are np.ndarray
@@ -426,7 +476,7 @@ def psndcg(X, true_labels, inv_psp, k=5, sort_values=False):
         propensity scores for each label
     k: int, optional (default=5)
         compute propensity scored nDCG till k
-    sorted: boolean, optional, default=False
+    sort_values: boolean, optional, default=False
         whether X is already sorted (will skip sorting)
         * used when X is of type dict or np.ndarray (of indices)
         * shape is not checked is X are np.ndarray
@@ -478,7 +528,7 @@ def recall(X, true_labels, k=5, sort_values=False):
         ground truth in sparse or dense format
     k: int, optional (default=5)
         compute recall till k
-    sorted: boolean, optional, default=False
+    sort_values: boolean, optional, default=False
         whether X is already sorted (will skip sorting)
         * used when X is of type dict or np.ndarray (of indices)
         * shape is not checked is X are np.ndarray
@@ -516,7 +566,7 @@ def hits(X, true_labels, k=5, sort_values=False):
         ground truth in sparse or dense format
     k: int, optional (default=5)
         compute recall till k
-    sorted: boolean, optional, default=False
+    sort_values: boolean, optional, default=False
         whether X is already sorted (will skip sorting)
         * used when X is of type dict or np.ndarray (of indices)
         * shape is not checked is X are np.ndarray
@@ -559,7 +609,7 @@ def psrecall(X, true_labels, inv_psp, k=5, sort_values=False):
         propensity scores for each label
     k: int, optional (default=5)
         compute propensity scored recall till k
-    sorted: boolean, optional, default=False
+    sort_values: boolean, optional, default=False
         whether X is already sorted (will skip sorting)
         * used when X is of type dict or np.ndarray (of indices)
         * shape is not checked is X are np.ndarray
@@ -614,7 +664,7 @@ def auc(X, true_labels, k, sort_values=False):
         ground truth in sparse or dense format
     k: int, optional (default=5)
         retain top-k predictions only
-    sorted: boolean, optional, default=False
+    sort_values: boolean, optional, default=False
         whether X is already sorted (will skip sorting)
         * used when X is of type dict or np.ndarray (of indices)
         * shape is not checked is X are np.ndarray
