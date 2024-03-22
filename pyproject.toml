@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "scikit-xml"
-version = "0.1.3"
+version = "0.1.4"
 maintainers = [
     { name = "Carlo Nicolini", email = "c.nicolini@ipazia.com" },
 ]
@@ -53,12 +53,12 @@ classifiers = [
 [project.optional-dependencies]
 tests = [
     "pytest",
-    "pytest-cov",
     "ruff"
 ]
 
 docs = [
-    "mkdocs"
+    "mkdocs",
+    "mkapi"
 ]
 
 [project.urls]

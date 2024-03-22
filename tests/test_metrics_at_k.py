@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 import scipy.sparse as sp  # noqa: F401
-from skxml.metrics import f1_at_k_score, precision_at_k_score, recall_at_k_score
+from metrics import f1_at_k_score, precision_at_k_score, recall_at_k_score
 
 
 class TestPrecisionAtK:
