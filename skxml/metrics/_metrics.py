@@ -1,3 +1,6 @@
+# Copyright (c) 2024
+# Author: Carlo Nicolini <c.nicolini@ipazia.com>
+# License: MIT
 
 import numpy as np
 import scipy.sparse as sp

@@ -1,3 +1,7 @@
+# Copyright (c) 2024
+# Author: Carlo Nicolini <c.nicolini@ipazia.com>
+# License: MIT
+
 from functools import partial
 
 from sklearn.metrics import make_scorer

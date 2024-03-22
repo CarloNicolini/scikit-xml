@@ -1,1 +1,0 @@
-sklearnnumpypandasgit+https://github.com/kunaldahiya/pyxclib.git

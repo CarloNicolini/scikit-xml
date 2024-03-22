@@ -58,20 +58,7 @@ tests = [
 ]
 
 docs = [
-    "Sphinx",
-    "sphinx-gallery",
-    "sphinx-design",
-    "pydata-sphinx-theme==0.13.3",
-    "matplotlib",
-    "kaleido",
-    "sphinx-copybutton",
-    "numpydoc",
-    "sphinx-togglebutton",
-    "sphinx-favicon",
-    "sphinx-prompt",
-    "sphinxext.opengraph",
-    "sphinx-sitemap",
-    "sphinx-favicon"
+    "mkdocs"
 ]
 
 [project.urls]

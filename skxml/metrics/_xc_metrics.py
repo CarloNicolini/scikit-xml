@@ -1,3 +1,9 @@
+# Copyright (c) 2024
+# Author: Carlo Nicolini <c.nicolini@ipazia.com>
+# License: MIT
+# Implementation derived from:
+# pyxclib, Copyright 2024: Kunal Dahiya, https://github.com/kunaldahiya/pyxclib
+
 from typing import Union
 
 import numba as nb
@@ -11,18 +17,18 @@ SparseOrDenseLike = Union[SparseLike, ArrayLike]  # noqa: UP007
 
 
 @nb.njit(parallel=True)
-def _topk_nb(
+def _top_k_numba(
     data: SparseLike,
     indices: np.ndarray,
     indptr: np.ndarray,
     k: int,
-    pad_ind: np.ndarray,
+    pad_ind: int | np.ndarray,
     pad_val: int,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
     Get top-k indices and values for a sparse (csr) matrix
     * Parallel version: uses numba
-    Arguments:
+    Parameters
     ---------
     data: np.ndarray
         data / vals of csr array
@@ -38,7 +44,7 @@ def _topk_nb(
     pad_val: int
         padding index for values array
         Useful when number of values in a row are less than k
-    Returns:
+    Returns
     --------
     ind: np.ndarray
         topk indices; size=(num_rows, k)
@@ -68,7 +74,7 @@ def topk(
 ):
     """
     Get top-k indices and values for a sparse (csr) matrix
-    Arguments:
+    Parameters
     ---------
     X: csr_matrix
         sparse matrix
@@ -85,52 +91,53 @@ def topk(
     dtype: str, optional, default='float32'
         datatype of values
 
-    Returns:
+    Returns
     --------
     ind: np.ndarray
-        topk indices; size=(num_rows, k)
+        top k indices; size=(num_rows, k)
     val: np.ndarray, optional
-        topk val; size=(num_rows, k)
+        top k val; size=(num_rows, k)
     """
-    ind, val = _topk_nb(X.data, X.indices, X.indptr, k, pad_ind, pad_val)
+    ind, val = _top_k_numba(X.data, X.indices, X.indptr, k, pad_ind, pad_val)
     if return_values:
         return ind, val.astype(dtype)
     else:
         return ind
 
 
-def compatible_shapes(x: SparseOrDenseLike, y: SparseOrDenseLike):
+def compatible_shapes(x: SparseOrDenseLike | dict, y: SparseOrDenseLike | dict) -> bool:
     """
-    See if both matrices have same shape
+    Check if both inputs have compatible shapes for operations.
 
-    Works fine for the following combinations:
-    * both are sparse
-    * both are dense
+    This function now explicitly checks for dict types and improves readability
+    and error handling. It also ensures that if one of the inputs is a dict,
+    it must contain `indices` and `scores` keys with equal length arrays.
 
-    Will only compare rows when:
-    * one is sparse/dense and other is dict
-    * one is sparse and other is dense
+    Parameters:
+    - x, y: Inputs can be sparse matrices, dense matrices (np.ndarray), or dicts
+            with `indices` and `scores` keys.
 
-    ** User must ensure that predictions are of correct shape when a
-    np.ndarray is passed with all predictions.
+    Returns:
+    - bool: True if shapes are compatible, False otherwise.
     """
-    # both are either sparse or dense
-    if (sp.issparse(x) and sp.issparse(y)) or (
-        isinstance(x, np.ndarray) and isinstance(y, np.ndarray)
-    ):
+    # Check for sparse or dense compatibility
+    if (sp.issparse(x) and sp.issparse(y)) or (isinstance(x, np.ndarray) and isinstance(y, np.ndarray)):
         return x.shape == y.shape
 
-    # compare #rows if one is sparse and other is dict or np.ndarray
-    if not (isinstance(x, dict) or isinstance(y, dict)):
-        return x.shape[0] == y.shape[0]
-    else:
-        if isinstance(x, dict):
-            return len(x["indices"]) == len(x["scores"]) == y.shape[0]
-        else:
-            return len(y["indices"]) == len(y["scores"]) == x.shape[0]
+    # Handling dict cases more explicitly for clarity
+    if isinstance(x, dict) and isinstance(y, dict):
+        # Ensure both dicts have `indices` and `scores` and compare their first dimension
+        return len(x.get("indices", [])) == len(y.get("indices", [])) and len(x.get("scores", [])) == len(y.get("scores", []))
+    elif isinstance(x, dict):
+        return len(x.get("indices", [])) == len(x.get("scores", [])) == y.shape[0]
+    elif isinstance(y, dict):
+        return len(y.get("indices", [])) == len(y.get("scores", [])) == x.shape[0]
+
+    # Handling mixed sparse/dense cases by comparing the first dimension
+    return x.shape[0] == y.shape[0]
 
 
-def _get_topk_sparse(X: SparseLike, pad_indx: int = 0, pad_val:int=0, k=5):
+def _get_top_k_sparse(X: SparseLike, pad_indx: int = 0, pad_val: int = 0, k=5):
     """
     Get top-k elements when X is a sparse matrix
 
@@ -155,7 +162,7 @@ def _get_topk_sparse(X: SparseLike, pad_indx: int = 0, pad_val:int=0, k=5):
     return indices
 
 
-def _get_topk_array(X: ArrayLike, k: int = 5, sort_values: bool = False):
+def _get_top_k_array(X: ArrayLike, k: int = 5, sort_values: bool = False):
     """
     Get top-k elements when X is an array
     X can be an array of:
@@ -177,7 +184,7 @@ def _get_topk_array(X: ArrayLike, k: int = 5, sort_values: bool = False):
     return indices
 
 
-def _get_topk_dict(X: dict, k: int = 5, sort_values: bool = False):
+def _get_top_k_dict(X: dict, k: int = 5, sort_values: bool = False):
     """
     Get top-k elements when X is an dict of indices and scores
     X['scores'][i, j] will contain score of
@@ -207,7 +214,7 @@ def _get_topk_dict(X: dict, k: int = 5, sort_values: bool = False):
     return indices
 
 
-def _get_topk(X: SparseOrDenseLike, pad_indx: int = 0, k=5, sort_values: bool = False):
+def _get_top_k(X: SparseOrDenseLike, pad_indx: int = 0, k=5, sort_values: bool = False):
     """
     Get top-k indices (row-wise); Support for
     * csr_matirx
@@ -215,11 +222,11 @@ def _get_topk(X: SparseOrDenseLike, pad_indx: int = 0, k=5, sort_values: bool = 
     * np.ndarray with indices or values
     """
     if sp.issparse(X):
-        indices = _get_topk_sparse(X=X, pad_indx=pad_indx, k=k)
+        indices = _get_top_k_sparse(X=X, pad_indx=pad_indx, k=k)
     elif isinstance(X, np.ndarray):
-        indices = _get_topk_array(X=X, k=k, sort_values=sort_values)
+        indices = _get_top_k_array(X=X, k=k, sort_values=sort_values)
     elif isinstance(X, dict):
-        indices = _get_topk_dict(X=X, k=k, sort_values=sort_values)
+        indices = _get_top_k_dict(X=X, k=k, sort_values=sort_values)
     else:
         raise NotImplementedError(
             "Unknown type; please pass csr_matrix, np.ndarray or dict."
@@ -231,7 +238,7 @@ def compute_inv_propensity(labels: SparseLike, A: float, B: float) -> np.ndarray
     """
     Computes inverse propensity as proposed in Jain et al. 16.
 
-    Arguments:
+    Parameters
     ---------
     labels: csr_matrix
         label matrix (typically ground truth for train data)
@@ -246,7 +253,7 @@ def compute_inv_propensity(labels: SparseLike, A: float, B: float) -> np.ndarray
         * 2.6: Amazon
         * 1.5: otherwise
 
-    Returns:
+    Returns
     -------
     np.ndarray: propensity scores for each label
     """
@@ -279,12 +286,12 @@ def _setup_metric(X, true_labels, inv_psp=None, k=5, sort_values: bool = False):
         raise ValueError("Shape mismatch. Ground truth and prediction matrices "
                          "must have same shape.")
     num_instances, num_labels = true_labels.shape
-    indices = _get_topk(X, num_labels, k, sort_values)
+    indices = _get_top_k(X, num_labels, k, sort_values)
     ps_indices = None
     if inv_psp is not None:
         _mat = sp.spdiags(inv_psp, diags=0, m=num_labels, n=num_labels)
         _psp_wtd = _broad_cast(_mat.dot(true_labels.T).T, true_labels)
-        ps_indices = _get_topk(_psp_wtd, num_labels, k, False)
+        ps_indices = _get_top_k(_psp_wtd, num_labels, k, False)
         inv_psp = np.hstack([inv_psp, np.zeros(1)])
 
     if isinstance(true_labels, np.ndarray):
@@ -315,7 +322,7 @@ def _eval_flags(indices, true_labels, inv_psp=None):
     inv_psp : array_like, optional
         Inverse propagation matrix for adjusting evaluation flags.
 
-    Returns:
+    Returns
     -------
     eval_flags : ndarray
         Array of evaluation flags computed based on the input parameters.
@@ -344,7 +351,7 @@ def precision(X, true_labels, k=5, sort_values=False):
     """
     Compute precision@k for 1-k
 
-    Arguments:
+    Parameters
     ----------
     X: csr_matrix, np.ndarray or dict
         * csr_matrix: csr_matrix with nnz at relevant places
@@ -363,7 +370,7 @@ def precision(X, true_labels, k=5, sort_values=False):
         * used when X is of type dict or np.ndarray (of indices)
         * shape is not checked is X are np.ndarray
         * must be set to true when X are np.ndarray (of indices)
-    Returns:
+    Returns
     -------
     np.ndarray: precision values for 1-k
     """
@@ -378,7 +385,7 @@ def psprecision(X, true_labels, inv_psp, k=5, sort_values=False):
     """
     Compute propensity scored precision@k for 1-k
 
-    Arguments:
+    Parameters
     ----------
     X: csr_matrix, np.ndarray or dict
         * csr_matrix: csr_matrix with nnz at relevant places
@@ -400,7 +407,7 @@ def psprecision(X, true_labels, inv_psp, k=5, sort_values=False):
         * must be set to true when X are np.ndarray (of indices)
 
 
-    Returns:
+    Returns
     -------
     np.ndarray: propensity scored precision values for 1-k
     """
@@ -422,7 +429,7 @@ def ndcg(X, true_labels, k=5, sort_values=False):
     """
     Compute nDCG@k for 1-k
 
-    Arguments:
+    Parameters
     ----------
     X: csr_matrix, np.ndarray or dict
         * csr_matrix: csr_matrix with nnz at relevant places
@@ -442,7 +449,7 @@ def ndcg(X, true_labels, k=5, sort_values=False):
         * must be set to true when X are np.ndarray (of indices)
 
 
-    Returns:
+    Returns
     -------
     np.ndarray: nDCG values for 1-k
     """
@@ -461,7 +468,7 @@ def psndcg(X, true_labels, inv_psp, k=5, sort_values=False):
     """
     Compute propensity scored nDCG@k for 1-k
 
-    Arguments:
+    Parameters
     ----------
     X: csr_matrix, np.ndarray or dict
         * csr_matrix: csr_matrix with nnz at relevant places
@@ -483,7 +490,7 @@ def psndcg(X, true_labels, inv_psp, k=5, sort_values=False):
         * must be set to true when X are np.ndarray (of indices)
 
 
-    Returns:
+    Returns
     -------
     np.ndarray: propensity scored nDCG values for 1-k
     """
@@ -515,7 +522,7 @@ def recall(X, true_labels, k=5, sort_values=False):
     """
     Compute recall@k for 1-k
 
-    Arguments:
+    Parameters
     ----------
     X: csr_matrix, np.ndarray or dict
         * csr_matrix: csr_matrix with nnz at relevant places
@@ -535,7 +542,7 @@ def recall(X, true_labels, k=5, sort_values=False):
         * must be set to true when X are np.ndarray (of indices)
 
 
-    Returns:
+    Returns
     -------
     np.ndarray: recall values for 1-k
     """
@@ -553,7 +560,7 @@ def hits(X, true_labels, k=5, sort_values=False):
     """
     Compute hits@k for 1-k
 
-    Arguments:
+    Parameters
     ----------
     X: csr_matrix, np.ndarray or dict
         * csr_matrix: csr_matrix with nnz at relevant places
@@ -573,7 +580,7 @@ def hits(X, true_labels, k=5, sort_values=False):
         * must be set to true when X are np.ndarray (of indices)
 
 
-    Returns:
+    Returns
     -------
     np.ndarray: hits values for 1-k
     """
@@ -594,7 +601,7 @@ def psrecall(X, true_labels, inv_psp, k=5, sort_values=False):
     """
     Compute propensity scored recall@k for 1-k
 
-    Arguments:
+    Parameters
     ----------
     X: csr_matrix, np.ndarray or dict
         * csr_matrix: csr_matrix with nnz at relevant places
@@ -616,7 +623,7 @@ def psrecall(X, true_labels, inv_psp, k=5, sort_values=False):
         * must be set to true when X are np.ndarray (of indices)
 
 
-    Returns:
+    Returns
     -------
     np.ndarray: propensity scored recall values for 1-k
     """
@@ -637,7 +644,34 @@ def _recall(eval_flags, deno, k=5):
     return np.ravel(recall)
 
 
-def _auc(X, k):
+def _auc(X: ArrayLike, k: int):
+    """
+    Compute the Area Under the Curve (AUC) score for a given input.
+
+    Parameters:
+    -----------
+    X : numpy.ndarray
+        The input array of shape (n_samples, n_labels) containing the predicted probabilities or scores.
+    k : int
+        The number of top predictions to consider for each sample.
+
+    Returns
+    --------
+    float : The AUC score.
+
+    Notes:
+    ------
+    This function assumes that the input array X contains predicted probabilities or scores,
+     where higher values indicate higher confidence or likelihood of the positive class. The input array should have the same number of samples as the true labels used for evaluation.
+
+    The AUC score is a commonly used metric for evaluating the performance of binary classification
+     models. It measures the ability of the model to rank positive instances higher than negative
+     instances. A perfect AUC score is 1.0, indicating a perfect ranking, while a random ranking
+     would result in an AUC score of 0.5.
+
+    This function is designed to work with numpy arrays and follows the numpy style for
+    function documentation.
+    """
     non_inv = np.cumsum(X, axis=1)
     cum_noninv = np.sum(np.multiply(non_inv, 1 - X), axis=1)
     n_pos = non_inv[:, -1]
@@ -647,11 +681,11 @@ def _auc(X, k):
     return np.mean(point_auc)
 
 
-def auc(X, true_labels, k, sort_values=False):
+def auc(X: SparseOrDenseLike, true_labels: SparseOrDenseLike, k:int, sort_values:bool=False):
     """
     Compute AUC score
 
-    Arguments:
+    Parameters
     ----------
     X: csr_matrix, np.ndarray or dict
         * csr_matrix: csr_matrix with nnz at relevant places
@@ -671,7 +705,7 @@ def auc(X, true_labels, k, sort_values=False):
         * must be set to true when X are np.ndarray (of indices)
 
 
-    Returns:
+    Returns
     -------
     np.ndarray: auc score
     """
