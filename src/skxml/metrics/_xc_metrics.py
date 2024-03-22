@@ -121,13 +121,17 @@ def compatible_shapes(x: SparseOrDenseLike | dict, y: SparseOrDenseLike | dict) 
     - bool: True if shapes are compatible, False otherwise.
     """
     # Check for sparse or dense compatibility
-    if (sp.issparse(x) and sp.issparse(y)) or (isinstance(x, np.ndarray) and isinstance(y, np.ndarray)):
+    if (sp.issparse(x) and sp.issparse(y)) or (
+        isinstance(x, np.ndarray) and isinstance(y, np.ndarray)
+    ):
         return x.shape == y.shape
 
     # Handling dict cases more explicitly for clarity
     if isinstance(x, dict) and isinstance(y, dict):
         # Ensure both dicts have `indices` and `scores` and compare their first dimension
-        return len(x.get("indices", [])) == len(y.get("indices", [])) and len(x.get("scores", [])) == len(y.get("scores", []))
+        return len(x.get("indices", [])) == len(y.get("indices", [])) and len(
+            x.get("scores", [])
+        ) == len(y.get("scores", []))
     elif isinstance(x, dict):
         return len(x.get("indices", [])) == len(x.get("scores", [])) == y.shape[0]
     elif isinstance(y, dict):
@@ -280,11 +284,11 @@ def _setup_metric(X, true_labels, inv_psp=None, k=5, sort_values: bool = False):
                 "Unknown type; please pass csr_matrix, np.ndarray or dict."
             )
 
-    if not compatible_shapes(
-        X, true_labels
-    ):
-        raise ValueError("Shape mismatch. Ground truth and prediction matrices "
-                         "must have same shape.")
+    if not compatible_shapes(X, true_labels):
+        raise ValueError(
+            "Shape mismatch. Ground truth and prediction matrices "
+            "must have same shape."
+        )
     num_instances, num_labels = true_labels.shape
     indices = _get_top_k(X, num_labels, k, sort_values)
     ps_indices = None
@@ -681,7 +685,12 @@ def _auc(X: ArrayLike, k: int):
     return np.mean(point_auc)
 
 
-def auc(X: SparseOrDenseLike, true_labels: SparseOrDenseLike, k:int, sort_values:bool=False):
+def auc(
+    X: SparseOrDenseLike,
+    true_labels: SparseOrDenseLike,
+    k: int,
+    sort_values: bool = False,
+):
     """
     Compute AUC score
 

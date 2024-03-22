@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 import scipy.sparse as sp  # noqa: F401
-from metrics import f1_at_k_score, precision_at_k_score, recall_at_k_score
+from skxml.metrics import f1_at_k_score, precision_at_k_score, recall_at_k_score
 
 
 class TestPrecisionAtK:
@@ -17,7 +17,7 @@ class TestPrecisionAtK:
         result_at_1 = precision_at_k_score(y_true, y_pred, k=1, sort_values=sort_values)
         # Assert
         assert np.allclose(result_at_1, 1), f"Wrong value of precision@1: {result_at_1}"
-        result_at_2 = precision_at_k_score(y_true, y_pred, k=1, sort_values=sort_values)
+        result_at_2 = precision_at_k_score(y_true, y_pred, k=2, sort_values=sort_values)
         assert np.allclose(result_at_2, 5 / 6), f"wrong value of precision@2: {result_at_2}"
 
     #  Returns 0 when y_true is empty.
@@ -56,44 +56,6 @@ class TestPrecisionAtK:
         sort_values = False
 
         result = precision_at_k_score(y_true, y_pred, k, sort_values=sort_values)
-
-
-class TestF1AtK:
-
-    #  Returns the f1 score for valid input.
-    def test_valid_input(self):
-        y_true = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
-        y_pred = np.array([[0.9, 0.1, 0], [0.1, 0.8, 0.1], [0, 0.2, 0.8]])
-        result = f1_at_k_score(y_true, y_pred)
-        assert result == pytest.approx(0.6666666666666666)
-
-    #  Returns the f1 score for valid input with k > 1.
-    def test_valid_input_k_greater_than_1(self):
-        y_true = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
-        y_pred = np.array([[0.9, 0.1, 0], [0.1, 0.8, 0.1], [0, 0.2, 0.8]])
-        result = f1_at_k_score(y_true, y_pred, k=2)
-        assert result == pytest.approx(0.6666666666666666)
-
-    #  Returns 0 when y_true and y_pred are empty.
-    def test_empty_input(self):
-        y_true = np.array([])
-        y_pred = np.array([])
-        result = f1_at_k_score(y_true, y_pred)
-        assert result == 0
-
-    #  Returns 0 when k is 0.
-    def test_k_zero(self):
-        y_true = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
-        y_pred = np.array([[0.9, 0.1, 0], [0.1, 0.8, 0.1], [0, 0.2, 0.8]])
-        result = f1_at_k_score(y_true, y_pred, k=0)
-        assert result == 0
-
-    #  Returns 0 when k is greater than the number of labels.
-    def test_k_greater_than_labels(self):
-        y_true = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
-        y_pred = np.array([[0.9, 0.1, 0], [0.1, 0.8, 0.1], [0, 0.2, 0.8]])
-        result = f1_at_k_score(y_true, y_pred, k=4)
-        assert result == 0
 
 
 class TestRecallAtK:

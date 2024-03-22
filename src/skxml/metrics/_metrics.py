@@ -112,9 +112,13 @@ def f1_at_k_score(
     sort_values:
         whether to s
     """
-    p = precision_at_k_score(y_true, y_pred, k, propensity_array, propensity_coeff, sort_values)
-    r = recall_at_k_score(y_true, y_pred, k, propensity_array, propensity_coeff, sort_values)
-    return 2*p*r/(p+r)
+    p = precision_at_k_score(
+        y_true, y_pred, k, propensity_array, propensity_coeff, sort_values
+    )
+    r = recall_at_k_score(
+        y_true, y_pred, k, propensity_array, propensity_coeff, sort_values
+    )
+    return 2 * p * r / (p + r)
 
 
 def recall_at_k_score(
@@ -349,8 +353,12 @@ def compute_metrics(
             K = kwargs["k"]
             propensity_coeff = kwargs.get("propensity_coeff", None)
             for k in range(1, K + 1):
-                all_metrics[f"ncdg@{k}"] = ndcg_at_k_score(y_true=y_true, y_pred=y_score, k=k)
-                all_metrics[f"ncdg@{k}"] = ndcg_at_k_score(y_true=y_true, y_pred=y_score, k=k)
+                all_metrics[f"ncdg@{k}"] = ndcg_at_k_score(
+                    y_true=y_true, y_pred=y_score, k=k
+                )
+                all_metrics[f"ncdg@{k}"] = ndcg_at_k_score(
+                    y_true=y_true, y_pred=y_score, k=k
+                )
                 all_metrics[f"precision@{k}"] = precision_at_k_score(
                     y_true=y_true, y_pred=y_score, k=k
                 )

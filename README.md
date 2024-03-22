@@ -1,6 +1,6 @@
-# Scikit-xml
+# 🍡 SciKit-XML
 This python package provides a comprehensive set of functions to compute advanced evaluation metrics for machine learning models,
-especially focusing on scenarios where the standard metrics do not suffice. 
+especially focusing on scenarios where the standard metrics do not suffice.
 
 It includes specialized metrics such as precision@k, recall@k, f1@k, and normalized cumulative discount gain (NDCG) at k, along with propensity-scored versions of these metrics to handle cases with biased datasets.
 
@@ -25,7 +25,7 @@ pip install -r requirements.txt
 ```
 
 # Usage
-Here is a quick example of how to use the `precision_at_k_score` function:
+Here is a quick example of how to use the `precision_at_k_score` function with dense numpy arrays:
 
 ```python
 import numpy as np
