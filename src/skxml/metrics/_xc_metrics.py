@@ -120,11 +120,13 @@ def compatible_shapes(x: SparseOrDenseLike | dict, y: SparseOrDenseLike | dict) 
     Returns:
     - bool: True if shapes are compatible, False otherwise.
     """
+    if x.ndim!=2 or y.ndim!=2:
+        return False
     # Check for sparse or dense compatibility
     if (sp.issparse(x) and sp.issparse(y)) or (
         isinstance(x, np.ndarray) and isinstance(y, np.ndarray)
     ):
-        return x.shape == y.shape
+        return (x.shape == y.shape)
 
     # Handling dict cases more explicitly for clarity
     if isinstance(x, dict) and isinstance(y, dict):
@@ -287,7 +289,7 @@ def _setup_metric(X, true_labels, inv_psp=None, k=5, sort_values: bool = False):
     if not compatible_shapes(X, true_labels):
         raise ValueError(
             "Shape mismatch. Ground truth and prediction matrices "
-            "must have same shape."
+            "must have same shape and ndim=2."
         )
     num_instances, num_labels = true_labels.shape
     indices = _get_top_k(X, num_labels, k, sort_values)
@@ -550,6 +552,7 @@ def recall(X, true_labels, k=5, sort_values=False):
     -------
     np.ndarray: recall values for 1-k
     """
+
     indices, true_labels, _, _ = _setup_metric(
         X, true_labels, k=k, sort_values=sort_values
     )
