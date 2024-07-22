@@ -1,6 +1,42 @@
 import numpy as np
 
-def precision_at_k(y_true: np.ndarray, y_score:np.ndarray, k:int =3):
+
+def recall_at_k(y_true: np.ndarray, y_score: np.ndarray, k: int = 3):
+    """
+    Compute recall at k.
+
+    Parameters:
+        y_true (np.ndarray): True labels.
+        y_score (np.ndarray): Predicted scores.
+        k (int): Number of top elements to consider. Default is 3.
+
+    Returns:
+        recall (float): Recall at k.
+    """
+    if y_score.ndim == 1:
+        y_score = y_score.reshape(-1, len(y_score))
+    if y_true.ndim == 1:
+        y_true = y_true.reshape(-1, len(y_true))
+
+    sorted_scores = np.argsort(y_score, axis=1)[:, ::-1]
+    top_k = np.take_along_axis(arr=y_true, indices=sorted_scores, axis=1)[:, :k]
+
+    # Calculate the number of relevant items for each row
+    num_relevant = np.sum(y_true, axis=1)
+
+    # Avoid division by zero
+    num_relevant = np.maximum(num_relevant, 1)
+
+    # Calculate recall for each row
+    recall_per_row = np.sum(top_k, axis=1) / num_relevant
+
+    # Calculate average recall
+    recall = np.mean(recall_per_row)
+
+    return recall
+
+
+def precision_at_k(y_true: np.ndarray, y_score: np.ndarray, k: int = 3):
     """
     Compute precision at k.
 
@@ -19,10 +55,11 @@ def precision_at_k(y_true: np.ndarray, y_score:np.ndarray, k:int =3):
     sorted_scores = np.argsort(y_score, axis=1)[:, ::-1]
     top_k = np.take_along_axis(arr=y_true, indices=sorted_scores, axis=1)[:, :k]
     precision = np.mean(top_k)
-    
+
     return precision
 
-def dcg_at_k(y_true: np.ndarray, y_score:np.ndarray, k:int =3):
+
+def dcg_at_k(y_true: np.ndarray, y_score: np.ndarray, k: int = 3):
     """
     Compute Discounted Cumulative Gain (DCG) at k.
 
@@ -44,7 +81,8 @@ def dcg_at_k(y_true: np.ndarray, y_score:np.ndarray, k:int =3):
     dcg = np.sum(rel_gain)
     return dcg
 
-def ndcg_at_k(y_true: np.ndarray, y_score:np.ndarray, k:int =3):
+
+def ndcg_at_k(y_true: np.ndarray, y_score: np.ndarray, k: int = 3):
     """
     Compute Normalized Discounted Cumulative Gain (DCG) at k.
 
@@ -63,10 +101,11 @@ def ndcg_at_k(y_true: np.ndarray, y_score:np.ndarray, k:int =3):
 
     dcg = dcg_at_k(y_true=y_true, y_score=y_score)
     rel_gain = 1 / np.log2(np.arange(2, k + 2))
-    ndcg = dcg/np.sum(rel_gain)
+    ndcg = dcg / np.sum(rel_gain)
     return ndcg
 
-def propensity(y_true: np.ndarray, A:float =0.55, B:float =1.5):
+
+def propensity(y_true: np.ndarray, A: float = 0.55, B: float = 1.5):
     """
     Compute the propensity scores using the sigmoidal function.
 
@@ -80,11 +119,12 @@ def propensity(y_true: np.ndarray, A:float =0.55, B:float =1.5):
     """
     N = y_true.shape[0]  # Size of the dataset
     Nl = y_true.sum(axis=0)  # Sum along rows to get frequency of each label
-    C = (np.log(N)- 1) * (B + 1)**A
+    C = (np.log(N) - 1) * (B + 1) ** A
     propensity_scores = 1 / (1 + C * np.exp(-A * np.log(Nl + B)))
     return propensity_scores
 
-def ps_precision_at_k(y_true: np.ndarray, y_score:np.ndarray, k:int =3):
+
+def ps_precision_at_k(y_true: np.ndarray, y_score: np.ndarray, k: int = 3):
     """
     Compute propensity scored precision at k.
 
@@ -103,14 +143,15 @@ def ps_precision_at_k(y_true: np.ndarray, y_score:np.ndarray, k:int =3):
 
     sorted_scores = np.argsort(y_score, axis=1)[:, ::-1]
     top_k_y_true = np.take_along_axis(arr=y_true, indices=sorted_scores, axis=1)[:, :k]
-    
+
     propensity_scores = propensity(y_true)
 
-    psp_at_k = np.mean(top_k_y_true/propensity_scores[top_k_y_true])
-    
+    psp_at_k = np.mean(top_k_y_true / propensity_scores[top_k_y_true])
+
     return psp_at_k
 
-def ps_dcg_at_k(y_true: np.ndarray, y_score:np.ndarray, k:int =3):
+
+def ps_dcg_at_k(y_true: np.ndarray, y_score: np.ndarray, k: int = 3):
     """
     Compute propensity scored Discounted Cumulative Gain (DCG) at k.
 
@@ -126,18 +167,19 @@ def ps_dcg_at_k(y_true: np.ndarray, y_score:np.ndarray, k:int =3):
         y_score = y_score.reshape(-1, len(y_score))
     if y_true.ndim == 1:
         y_true = y_true.reshape(-1, len(y_true))
-        
+
     sorted_scores = np.argsort(y_score, axis=1)[:, ::-1]
     top_k_y_true = np.take_along_axis(arr=y_true, indices=sorted_scores, axis=1)[:, :k]
 
     propensity_scores = propensity(y_true)
 
-    rel_gain = top_k_y_true /(propensity_scores[top_k_y_true]* np.log2(np.arange(2, k + 2)))
+    rel_gain = top_k_y_true / (propensity_scores[top_k_y_true] * np.log2(np.arange(2, k + 2)))
     ps_dcg_at_k = np.sum(rel_gain)
 
     return ps_dcg_at_k
 
-def ps_ndcg_at_k(y_true: np.ndarray, y_score:np.ndarray, k:int =3):
+
+def ps_ndcg_at_k(y_true: np.ndarray, y_score: np.ndarray, k: int = 3):
     """
     Compute propensity scored Normalized Discounted Cumulative Gain (DCG) at k.
 
@@ -157,6 +199,6 @@ def ps_ndcg_at_k(y_true: np.ndarray, y_score:np.ndarray, k:int =3):
     ps_dcg = ps_dcg_at_k(y_true=y_true, y_score=y_score)
 
     rel_gain = 1 / np.log2(np.arange(2, k + 2))
-    ps_ndcg_at_k = ps_dcg/np.sum(rel_gain)
-    
+    ps_ndcg_at_k = ps_dcg / np.sum(rel_gain)
+
     return ps_ndcg_at_k
