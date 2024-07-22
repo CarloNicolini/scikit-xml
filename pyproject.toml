@@ -75,7 +75,7 @@ docs = [
 Repository = "https://bitbucket.org/ipazia1/scikit-xml/"
 
 [tool.setuptools.packages.find]
-where = ["skxml"]
+where = ["src/skxml"]
 
 [tool.semantic_release]
 version_toml = [
