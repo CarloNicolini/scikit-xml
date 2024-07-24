@@ -3,7 +3,6 @@ from _sk_metrics import (
     recall_at_k,
     ndcg_at_k,
     compute_metrics,
-    mean_average_precision_at_k,
 )
 from _sk_scorers import (
     precision_at_k_scorer,
