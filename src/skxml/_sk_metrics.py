@@ -77,64 +77,6 @@ def precision_at_k(
         raise ValueError("Unsupported propensity array type")
 
 
-def mean_average_precision_at_k(
-    y_true: np.ndarray | sp.csr_matrix | sp.csr_array,
-    y_pred: np.ndarray | sp.csr_matrix | sp.csr_array,
-    k: int = 1,
-    propensity_array: np.ndarray | None = None,
-    propensity_coeff: tuple[float, float] | None = None,
-    sort_values: bool = False,
-) -> float:
-    """
-    Returns the mean average precision@k.
-
-    Parameters
-    ----------
-    y_true: np.ndarray, sp.csr_matrix, dict
-        The 2D array of ground truth labels.
-    y_pred: sp.csr_matrix, np.ndarray or dict
-        The 2D array of labels relevance as found by the classifier .predict_proba
-        * sp.csr_matrix: sp.csr_matrix with nnz at relevant places
-        * np.ndarray (float): scores for each label
-            User must ensure shape is fine
-        * np.ndarray (int): top indices (in sort_values order)
-            User must ensure shape is fine
-        * {'indices': np.ndarray, 'scores': np.ndarray}
-    k: int
-        The number of indices to return.
-    propensity_array:
-        An array with the inverse propensity scores
-    propensity_coeff:
-        A tuple with two elements representing the propensity coefficients
-    sort_values:
-        whether to sort values
-    """
-    if isinstance(propensity_coeff, tuple | list):
-        propensity_array = compute_inv_propensity(
-            labels=y_true, A=propensity_coeff[0], B=propensity_coeff[1]
-        )
-    if isinstance(propensity_array, np.ndarray):
-        return np.mean(
-            psprecision(
-                X=y_pred,
-                true_labels=y_true,
-                inv_psp=propensity_array,
-                k=k,
-                sort_values=sort_values,
-            )
-            / np.arange(1, k + 1)
-        )
-    elif propensity_array is None:
-        return float(
-            np.mean(
-                precision(X=y_pred, true_labels=y_true, k=k, sort_values=sort_values)
-                / np.arange(1, k + 1)
-            )
-        )
-    else:
-        raise ValueError("Unsupported propensity array type")
-
-
 def f1_at_k(
     y_true: np.ndarray | sp.csr_matrix | sp.csr_array,
     y_pred: np.ndarray | sp.csr_matrix | sp.csr_array,
