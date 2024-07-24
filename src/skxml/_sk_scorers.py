@@ -1,6 +1,6 @@
 from sklearn.metrics import make_scorer
 from functools import partial
-from ._metrics import precision_at_k, recall_at_k, ndcg_at_k, f1_at_k
+from skxml._sk_metrics import precision_at_k, recall_at_k, ndcg_at_k, f1_at_k
 
 precision_at_k_scorer = make_scorer(
     precision_at_k, greater_is_better=True, response_method="predict_proba"
