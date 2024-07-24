@@ -21,7 +21,6 @@ from skxml._xc_metrics import (
     psprecision,
     psrecall,
     recall,
-    meanavgprecision,
 )
 
 
@@ -352,12 +351,6 @@ def compute_metrics(
                 all_metrics[f"ncdg@{k}"] = ndcg_at_k(y_true=y_true, y_pred=y_score, k=k)
                 all_metrics[f"precision@{k}"] = precision_at_k(
                     y_true=y_true, y_pred=y_score, k=k
-                )
-                all_metrics[f"map@{k}"] = mean_average_precision_at_k(
-                    y_true=y_true,
-                    y_pred=y_score,
-                    k=k,
-                    propensity_coeff=propensity_coeff,
                 )
                 all_metrics[f"recall@{k}"] = recall_at_k(
                     y_true=y_true, y_pred=y_score, k=k
