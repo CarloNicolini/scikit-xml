@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "scikit-xml"
-version = "0.1.2"
+version = "0.1.3"
 maintainers = [
     { name = "Carlo Nicolini", email = "c.nicolini@ipazia.com" },
 ]
