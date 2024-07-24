@@ -348,7 +348,6 @@ def compute_metrics(
             propensity_coeff = kwargs.get("propensity_coeff", None)
             for k in range(1, K + 1):
                 all_metrics[f"ncdg@{k}"] = ndcg_at_k(y_true=y_true, y_pred=y_score, k=k)
-                all_metrics[f"ncdg@{k}"] = ndcg_at_k(y_true=y_true, y_pred=y_score, k=k)
                 all_metrics[f"precision@{k}"] = precision_at_k(
                     y_true=y_true, y_pred=y_score, k=k
                 )
