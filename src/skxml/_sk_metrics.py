@@ -114,13 +114,16 @@ def mean_average_precision_at_k(
             labels=y_true, A=propensity_coeff[0], B=propensity_coeff[1]
         )
     if isinstance(propensity_array, np.ndarray):
-        return psprecision(
-            X=y_pred,
-            true_labels=y_true,
-            inv_psp=propensity_array,
-            k=k,
-            sort_values=sort_values,
-        )[-1]
+        return np.mean(
+            psprecision(
+                X=y_pred,
+                true_labels=y_true,
+                inv_psp=propensity_array,
+                k=k,
+                sort_values=sort_values,
+            )
+            / np.arange(1, k)
+        )
     elif propensity_array is None:
         return float(
             np.mean(
