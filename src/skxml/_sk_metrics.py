@@ -123,9 +123,7 @@ def mean_average_precision_at_k(
         )[-1]
     elif propensity_array is None:
         return float(
-            meanavgprecision(
-                X=y_pred, true_labels=y_true, k=k, sort_values=sort_values
-            )[-1]
+            meanavgprecision(X=y_pred, true_labels=y_true, k=k, sort_values=sort_values)
         )
     else:
         raise ValueError("Unsupported propensity array type")
