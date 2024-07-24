@@ -327,6 +327,71 @@ def precision(X, true_labels, k=5, sort_values=False):
     return _precision(eval_flags, k)
 
 
+def meanavgprecision(
+    X: SparseOrDenseLike,
+    true_labels: SparseOrDenseLike,
+    k: int = 5,
+    sort_values: bool = False,
+) -> float:
+    """
+    Compute Mean Average Precision at k (MAP@k)
+
+    Arguments:
+    ----------
+    X: csr_matrix, np.ndarray or dict
+        * csr_matrix: csr_matrix with nnz at relevant places
+        * np.ndarray (float): scores for each label
+            User must ensure shape is fine
+        * np.ndarray (int): top indices (in sorted order)
+            User must ensure shape is fine
+        * {'indices': np.ndarray, 'scores': np.ndarray}
+    true_labels: csr_matrix or np.ndarray
+        ground truth in sparse or dense format
+    k: int, optional (default=5)
+        compute MAP till k
+    sort_values: boolean, optional, default=False
+        whether X is already sorted (will skip sorting)
+        * used when X is of type dict or np.ndarray (of indices)
+        * shape is not checked if X are np.ndarray
+        * must be set to true when X are np.ndarray (of indices)
+
+    Returns:
+    -------
+    float: MAP@k value
+    """
+    indices, true_labels, _, _ = _setup_metric(
+        X, true_labels, k=k, sort_values=sort_values
+    )
+    eval_flags = _eval_flags(indices, true_labels, None)
+    return _map(eval_flags, k)
+
+
+def _map(eval_flags: np.ndarray, k: int) -> float:
+    """
+    Compute MAP@k given the evaluation flags
+
+    Arguments:
+    ----------
+    eval_flags: np.ndarray
+        Binary matrix indicating correct predictions
+    k: int
+        Number of top predictions to consider
+
+    Returns:
+    -------
+    float: MAP@k value
+    """
+    relevant_docs = np.sum(eval_flags, axis=1)
+    if np.sum(relevant_docs) == 0:
+        return 0.0
+
+    precision_at_i = np.cumsum(eval_flags, axis=1) / np.arange(1, k + 1)
+    average_precision = np.sum(
+        np.multiply(precision_at_i, eval_flags), axis=1
+    ) / np.minimum(relevant_docs, k)
+    return np.mean(average_precision)
+
+
 def psprecision(X, true_labels, inv_psp, k=5, sort_values=False):
     """
     Compute propensity scored precision@k for 1-k
@@ -363,6 +428,43 @@ def psprecision(X, true_labels, inv_psp, k=5, sort_values=False):
     eval_flags = _eval_flags(indices, true_labels, inv_psp)
     ps_eval_flags = _eval_flags(ps_indices, true_labels, inv_psp)
     return _precision(eval_flags, k) / _precision(ps_eval_flags, k)
+
+
+def psmap(X, true_labels, inv_psp, k=5, sort_values=False):
+    """
+    Compute propensity scored mean average precision@k for 1-k
+
+    Arguments:
+    ----------
+    X: csr_matrix, np.ndarray or dict
+        * csr_matrix: csr_matrix with nnz at relevant places
+        * np.ndarray (float): scores for each label
+            User must ensure shape is fine
+        * np.ndarray (int): top indices (in sorted order)
+            User must ensure shape is fine
+        * {'indices': np.ndarray, 'scores': np.ndarray}
+    true_labels: csr_matrix or np.ndarray
+        ground truth in sparse or dense format
+    inv_psp: np.ndarray
+        propensity scores for each label
+    k: int, optional (default=5)
+        compute propensity scored precision till k
+    sorted: boolean, optional, default=False
+        whether X is already sorted (will skip sorting)
+        * used when X is of type dict or np.ndarray (of indices)
+        * shape is not checked is X are np.ndarray
+        * must be set to true when X are np.ndarray (of indices)
+
+    Returns:
+    -------
+    np.ndarray: propensity scored precision values for 1-k
+    """
+    indices, true_labels, ps_indices, inv_psp = _setup_metric(
+        X, true_labels, inv_psp, k=k, sort_values=sort_values
+    )
+    eval_flags = _eval_flags(indices, true_labels, inv_psp)
+    ps_eval_flags = _eval_flags(ps_indices, true_labels, inv_psp)
+    return _map(eval_flags, k) / _map(ps_eval_flags, k)
 
 
 def _precision(eval_flags, k=5):

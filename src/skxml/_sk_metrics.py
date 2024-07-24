@@ -21,6 +21,7 @@ from skxml._xc_metrics import (
     psprecision,
     psrecall,
     recall,
+    meanavgprecision,
 )
 
 
@@ -54,7 +55,7 @@ def precision_at_k(
     propensity_coeff:
         A tuple with two elements representing the propensity coefficients
     sort_values:
-        whether to s
+        whether to sort values
     """
     if isinstance(propensity_coeff, tuple | list):
         propensity_array = compute_inv_propensity(
@@ -71,6 +72,60 @@ def precision_at_k(
     elif propensity_array is None:
         return float(
             precision(X=y_pred, true_labels=y_true, k=k, sort_values=sort_values)[-1]
+        )
+    else:
+        raise ValueError("Unsupported propensity array type")
+
+
+def mean_average_precision_at_k(
+    y_true: np.ndarray | sp.csr_matrix | sp.csr_array,
+    y_pred: np.ndarray | sp.csr_matrix | sp.csr_array,
+    k: int = 1,
+    propensity_array: np.ndarray | None = None,
+    propensity_coeff: tuple[float, float] | None = None,
+    sort_values: bool = False,
+) -> float:
+    """
+    Returns the mean average precision@k.
+
+    Parameters
+    ----------
+    y_true: np.ndarray, sp.csr_matrix, dict
+        The 2D array of ground truth labels.
+    y_pred: sp.csr_matrix, np.ndarray or dict
+        The 2D array of labels relevance as found by the classifier .predict_proba
+        * sp.csr_matrix: sp.csr_matrix with nnz at relevant places
+        * np.ndarray (float): scores for each label
+            User must ensure shape is fine
+        * np.ndarray (int): top indices (in sort_values order)
+            User must ensure shape is fine
+        * {'indices': np.ndarray, 'scores': np.ndarray}
+    k: int
+        The number of indices to return.
+    propensity_array:
+        An array with the inverse propensity scores
+    propensity_coeff:
+        A tuple with two elements representing the propensity coefficients
+    sort_values:
+        whether to sort values
+    """
+    if isinstance(propensity_coeff, tuple | list):
+        propensity_array = compute_inv_propensity(
+            labels=y_true, A=propensity_coeff[0], B=propensity_coeff[1]
+        )
+    if isinstance(propensity_array, np.ndarray):
+        return psprecision(
+            X=y_pred,
+            true_labels=y_true,
+            inv_psp=propensity_array,
+            k=k,
+            sort_values=sort_values,
+        )[-1]
+    elif propensity_array is None:
+        return float(
+            meanavgprecision(
+                X=y_pred, true_labels=y_true, k=k, sort_values=sort_values
+            )[-1]
         )
     else:
         raise ValueError("Unsupported propensity array type")
@@ -351,6 +406,12 @@ def compute_metrics(
                 all_metrics[f"ncdg@{k}"] = ndcg_at_k(y_true=y_true, y_pred=y_score, k=k)
                 all_metrics[f"precision@{k}"] = precision_at_k(
                     y_true=y_true, y_pred=y_score, k=k
+                )
+                all_metrics[f"map@{k}"] = mean_average_precision_at_k(
+                    y_true=y_true,
+                    y_pred=y_score,
+                    k=k,
+                    propensity_coeff=propensity_coeff,
                 )
                 all_metrics[f"recall@{k}"] = recall_at_k(
                     y_true=y_true, y_pred=y_score, k=k
