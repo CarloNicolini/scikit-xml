@@ -2,6 +2,7 @@ from _sk_metrics import (
     precision_at_k,
     recall_at_k,
     ndcg_at_k,
+    map_at_k,
     compute_metrics,
 )
 from _sk_scorers import (

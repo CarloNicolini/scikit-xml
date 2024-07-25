@@ -14,20 +14,21 @@ from sklearn.metrics import (
 )
 
 from skxml._xc_metrics import (
+    SparseOrDenseLike,
+    _ndcg_helper,
+    _precision_helper,
+    _psndcg_helper,
+    _psprecision_helper,
+    _psrecall_helper,
+    _recall_helper,
     compute_inv_propensity,
-    ndcg,
-    precision,
-    psndcg,
-    psprecision,
-    psrecall,
-    recall,
 )
 
 
 def precision_at_k(
-    y_true: np.ndarray | sp.csr_matrix | sp.csr_array,
-    y_pred: np.ndarray | sp.csr_matrix | sp.csr_array,
-    k: int = 1,
+    y_true: SparseOrDenseLike,
+    y_pred: SparseOrDenseLike,
+    k: int,
     propensity_array: np.ndarray | None = None,
     propensity_coeff: tuple[float, float] | None = None,
     sort_values: bool = False,
@@ -61,7 +62,7 @@ def precision_at_k(
             labels=y_true, A=propensity_coeff[0], B=propensity_coeff[1]
         )
     if isinstance(propensity_array, np.ndarray):
-        return psprecision(
+        return _psprecision_helper(
             X=y_pred,
             true_labels=y_true,
             inv_psp=propensity_array,
@@ -70,19 +71,81 @@ def precision_at_k(
         )[-1]
     elif propensity_array is None:
         return float(
-            precision(X=y_pred, true_labels=y_true, k=k, sort_values=sort_values)[-1]
+            _precision_helper(
+                X=y_pred, true_labels=y_true, k=k, sort_values=sort_values
+            )[-1]
+        )
+    else:
+        raise ValueError("Unsupported propensity array type")
+
+
+def map_at_k(
+    y_true: SparseOrDenseLike,
+    y_pred: SparseOrDenseLike,
+    k: int,
+    propensity_array: np.ndarray | None = None,
+    propensity_coeff: tuple[float, float] | None = None,
+    sort_values: bool = False,
+) -> float:
+    """
+    Returns the mean precision@k.
+
+    Parameters
+    ----------
+    y_true: np.ndarray, sp.csr_matrix, dict
+        The 2D array of ground truth labels.
+    y_pred: sp.csr_matrix, np.ndarray or dict
+        The 2D array of labels relevance as found by the classifier .predict_proba
+        * sp.csr_matrix: sp.csr_matrix with nnz at relevant places
+        * np.ndarray (float): scores for each label
+            User must ensure shape is fine
+        * np.ndarray (int): top indices (in sort_values order)
+            User must ensure shape is fine
+        * {'indices': np.ndarray, 'scores': np.ndarray}
+    k: int
+        The number of indices to return.
+    propensity_array:
+        An array with the inverse propensity scores
+    propensity_coeff:
+        A tuple with two elements representing the propensity coefficients
+    sort_values:
+        whether to sort values
+    """
+    if isinstance(propensity_coeff, tuple | list):
+        propensity_array = compute_inv_propensity(
+            labels=y_true, A=propensity_coeff[0], B=propensity_coeff[1]
+        )
+    if isinstance(propensity_array, np.ndarray):
+        return np.mean(
+            [
+                _psprecision_helper(
+                    X=y_pred, true_labels=y_true, k=i, sort_values=sort_values,
+                    inv_psp=propensity_array
+                )
+                for i in range(1, k + 1)
+            ]
+        )
+    elif propensity_array is None:
+        return np.mean(
+            [
+                _precision_helper(
+                    X=y_pred, true_labels=y_true, k=i, sort_values=sort_values
+                )
+                for i in range(1, k + 1)
+            ]
         )
     else:
         raise ValueError("Unsupported propensity array type")
 
 
 def f1_at_k(
-    y_true: np.ndarray | sp.csr_matrix | sp.csr_array,
-    y_pred: np.ndarray | sp.csr_matrix | sp.csr_array,
-    k: int = 1,
+    y_true: SparseOrDenseLike,
+    y_pred: SparseOrDenseLike,
+    k: int,
     propensity_array: np.ndarray | None = None,
     propensity_coeff: tuple[float, float] | None = None,
     sort_values: bool = False,
+    beta: float = 1.0,
 ) -> float:
     """
     Returns the f1@k.
@@ -107,18 +170,19 @@ def f1_at_k(
         A tuple with two elements representing the propensity coefficients
     sort_values:
         whether to s
+    beta: to compute beta-F1 as (1+beta^2)*P*R/(beta^2* (P+R))
     """
     p = precision_at_k(
         y_true, y_pred, k, propensity_array, propensity_coeff, sort_values
     )
     r = recall_at_k(y_true, y_pred, k, propensity_array, propensity_coeff, sort_values)
-    return 2 * p * r / (p + r)
+    return ((1.0 + beta**2) * p * r) / (beta**2 * p + r)
 
 
 def recall_at_k(
-    y_true: np.ndarray | sp.csr_matrix | sp.csr_array,
-    y_pred: np.ndarray | sp.csr_matrix | sp.csr_array,
-    k: int = 1,
+    y_true: SparseOrDenseLike,
+    y_pred: SparseOrDenseLike,
+    k: int,
     propensity_array: np.ndarray | None = None,
     propensity_coeff: tuple[float, float] | None = None,
     sort_values: bool = False,
@@ -153,7 +217,7 @@ def recall_at_k(
         )
     if isinstance(propensity_array, np.ndarray):
         return float(
-            psrecall(
+            _psrecall_helper(
                 X=y_pred,
                 true_labels=y_true,
                 inv_psp=propensity_array,
@@ -163,16 +227,18 @@ def recall_at_k(
         )
     elif propensity_array is None:
         return float(
-            recall(X=y_pred, true_labels=y_true, k=k, sort_values=sort_values)[-1]
+            _recall_helper(X=y_pred, true_labels=y_true, k=k, sort_values=sort_values)[
+                -1
+            ]
         )
     else:
         raise ValueError("Unsupported propensity array type")
 
 
 def ndcg_at_k(
-    y_true: np.ndarray | sp.csr_matrix | sp.csr_array,
-    y_pred: np.ndarray | sp.csr_matrix | sp.csr_array,
-    k: int = 1,
+    y_true: SparseOrDenseLike,
+    y_pred: SparseOrDenseLike,
+    k: int,
     propensity_array: np.ndarray | None = None,
     propensity_coeff: tuple[float, float] = None,
     sort_values: bool = False,
@@ -207,7 +273,7 @@ def ndcg_at_k(
         )
     if isinstance(propensity_array, np.ndarray):
         return float(
-            psndcg(
+            _psndcg_helper(
                 X=y_pred,
                 true_labels=y_true,
                 inv_psp=propensity_array,
@@ -217,7 +283,7 @@ def ndcg_at_k(
         )
     elif propensity_array is None:
         return float(
-            ndcg(X=y_pred, true_labels=y_true, k=k, sort_values=sort_values)[-1]
+            _ndcg_helper(X=y_pred, true_labels=y_true, k=k, sort_values=sort_values)[-1]
         )
     else:
         raise ValueError("Unsupported propensity array type")
@@ -229,7 +295,22 @@ def validate_shapes(y_true, y_pred):
             raise ValueError("Incompatbile shapes between arrays")
 
 
-def validate_types(y_true, y_score, y_pred):
+def validate_types(
+    y_true: SparseOrDenseLike, y_score: SparseOrDenseLike, y_pred: SparseOrDenseLike
+) -> None:
+    """
+    Controls that the types are supported.
+
+    Parameters
+    ----------
+    y_true: np.array or scipy sparse array
+    y_score: np.array or scipy sparse array
+    y_pred: np.array or scipy sparse array
+
+    Returns
+    -------
+    None
+    """
     if y_true.dtype != np.int64:
         raise ValueError("Convert y_true array to int")
     if y_pred.dtype != np.int64 and y_pred.dtype != bool:
@@ -240,8 +321,8 @@ def validate_types(y_true, y_score, y_pred):
 
 
 def compute_metrics(
-    y_true: ArrayLike | sp.sparray,
-    y_pred: ArrayLike | sp.sparray,
+    y_true: SparseOrDenseLike,
+    y_pred: SparseOrDenseLike,
     y_score: ArrayLike | None = None,
     sample_weight: ArrayLike | None = None,
     **kwargs,
@@ -269,8 +350,6 @@ def compute_metrics(
     validate_shapes(y_true, y_pred)
     validate_shapes(y_true, y_score)
     validate_shapes(y_pred, y_score)
-
-    # validate_types(y_true, y_pred, y_score)
 
     all_metrics = {
         "precision_weighted": precision_score(
