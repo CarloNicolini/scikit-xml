@@ -2,11 +2,11 @@ import numpy as np
 import scipy.sparse as sp
 
 from skxml import precision_at_k, recall_at_k, map_at_k
-
+from sklearn.metrics import precision_score, recall_score
 
 class TestMetricsAtK:
     y_true = np.array([[1, 0, 1], [0, 1, 0], [1, 1, 0]])
-    y_pred = np.array([[0.8, 0.2, 0.6], [0.4, 0.6, 0.3], [0.7, 0.9, 0.5]])
+    y_scores = np.array([[0.8, 0.2, 0.6], [0.4, 0.6, 0.3], [0.7, 0.9, 0.5]])
 
 
 class TestPrecisionAtK(TestMetricsAtK):
@@ -16,12 +16,12 @@ class TestPrecisionAtK(TestMetricsAtK):
         sort_values = False
         # Act
         result_at_1 = precision_at_k(
-            self.y_true, self.y_pred, k=1, sort_values=sort_values
+            self.y_true, self.y_scores, k=1, sort_values=sort_values
         )
         # Assert
         assert np.allclose(result_at_1, 1), f"Wrong value of precision@1: {result_at_1}"
         result_at_2 = precision_at_k(
-            self.y_true, self.y_pred, k=2, sort_values=sort_values
+            self.y_true, self.y_scores, k=2, sort_values=sort_values
         )
         assert np.allclose(
             result_at_2, 5 / 6
@@ -30,7 +30,7 @@ class TestPrecisionAtK(TestMetricsAtK):
     def test_valid_input_sparse(self):
         # Arrange
         y_true = sp.csr_array(self.y_true)
-        y_pred = sp.csr_array(self.y_pred)
+        y_pred = sp.csr_array(self.y_scores)
         sort_values = False
 
         # Act
@@ -80,6 +80,16 @@ class TestPrecisionAtK(TestMetricsAtK):
         except AssertionError:
             pass
 
+    def test_exact_precision_sklearn(self):
+        k=2
+        from skxml._xc_metrics import _get_topk
+        topk_indices = _get_topk(self.y_scores, k=k)
+        # in this way we can simply set to 1 the indices of topk elements per row over any row
+        y_pred = sp.lil_array(self.y_scores.shape)
+        y_pred[:, topk_indices] = 1
+        sklearn_precision = precision_score(y_true=self.y_true, y_pred=y_pred, average="samples")
+        skxml_precision = precision_at_k(y_true=self.y_true, y_pred=self.y_scores, k=k)
+        assert sklearn_precision == skxml_precision, "Precision value is wrong against sklearn"
 
 class TestRecallAtK(TestMetricsAtK):
     #  Returns the recall@k for a valid input.
@@ -87,7 +97,7 @@ class TestRecallAtK(TestMetricsAtK):
         k = 2
         sort_values = False
         # Execute the function under test
-        result = recall_at_k(self.y_true, self.y_pred, k, sort_values=sort_values)
+        result = recall_at_k(self.y_true, self.y_scores, k, sort_values=sort_values)
         # Assertion
         assert result == 1.0
 
@@ -97,7 +107,7 @@ class TestRecallAtK(TestMetricsAtK):
         # Execute the function under test
         result = recall_at_k(
             sp.csr_array(self.y_true),
-            sp.csr_array(self.y_pred),
+            sp.csr_array(self.y_scores),
             k,
             sort_values=sort_values,
         )
@@ -114,7 +124,7 @@ class TestRecallAtK(TestMetricsAtK):
 
         # Execute the function under test
         try:
-            result = recall_at_k(y_true, self.y_pred, k, sort_values=sort_values)
+            result = recall_at_k(y_true, self.y_scores, k, sort_values=sort_values)
         except AssertionError:
             pass
 
@@ -145,6 +155,17 @@ class TestRecallAtK(TestMetricsAtK):
         except AssertionError:
             pass
 
+    def test_exact_recall_sklearn(self):
+        k = 2
+        from skxml._xc_metrics import _get_topk
+        topk_indices = _get_topk(self.y_scores, k=k)
+        # in this way we can simply set to 1 the indices of topk elements per row over any row
+        y_pred = sp.lil_array(self.y_scores.shape)
+        y_pred[:, topk_indices] = 1
+        sklearn_recall = recall_score(y_true=self.y_true, y_pred=y_pred, average="samples")
+        skxml_recall = recall_at_k(y_true=self.y_true, y_pred=self.y_scores, k=k)
+        assert sklearn_recall == skxml_recall, "Recall value is wrong against sklearn"
+
 
 class TestMAPAtK(TestMetricsAtK):
     #  Returns the precision@k for a valid input.
@@ -153,5 +174,5 @@ class TestMAPAtK(TestMetricsAtK):
         sort_values = False
         # Act
         result_at_2 = map_at_k(
-            self.y_true, self.y_pred, k=1, sort_values=sort_values
+            self.y_true, self.y_scores, k=1, sort_values=sort_values
         )
