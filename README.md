@@ -1,47 +1,101 @@
-# 🍡 SciKit-XML
-This python package provides a comprehensive set of functions to compute advanced evaluation metrics for machine learning models,
-especially focusing on scenarios where the standard metrics do not suffice.
+# SciKit-XML
 
-It includes specialized metrics such as precision@k, recall@k, f1@k, and normalized cumulative discount gain (NDCG) at k, along with propensity-scored versions of these metrics to handle cases with biased datasets.
+Advanced evaluation metrics for extreme multilabel classification and ranking tasks in scikit-learn.
+
+## Overview
+
+SciKit-XML is a Python package that provides a comprehensive set of evaluation metrics for machine learning models, with a focus on extreme multilabel classification and ranking scenarios. It extends scikit-learn with specialized metrics that go beyond standard classification metrics.
+
+The package includes metrics such as Precision@k, Recall@k, Mean Average Precision (MAP@k), and Normalized Cumulative Discount Gain (NDCG@k), along with propensity-scored variants to handle biased datasets.
 
 ## Features
-- Precision@k: Computes the precision of the predictions at the top-k ranking positions.
-- Recall@k: Computes the recall of the predictions at the top-k ranking positions.
-- F1@k: Computes the F1 score, which is the harmonic mean of precision and recall, at the top-k ranking positions.
-- NDCG@k: Computes the normalized cumulative discount gain at the top-k ranking positions, a metric useful for evaluating rankings.
 
-- Propensity-scored Metrics: For all the above metrics, versions that take into account propensity scores are available, useful for biased datasets.
-- Validation Utilities: Functions to validate the shapes and types of the input arrays to ensure compatibility with the metrics functions.
+- **Ranking Metrics**: Precision@k, Recall@k, MAP@k, and NDCG@k for evaluating top-k predictions
+- **Propensity-Scored Variants**: Bias-corrected versions of all metrics for handling imbalanced and biased datasets
+- **Scikit-Learn Integration**: Compatible scorers for use with scikit-learn's model selection and evaluation tools
+- **Efficient Computation**: Optimized implementations using NumPy and Numba for fast metric calculation
+- **Input Validation**: Comprehensive validation utilities to ensure data compatibility
 
+## Requirements
+
+- Python 3.10 or newer
+- NumPy >= 1.23.4
+- SciPy >= 1.8.0
+- Pandas >= 1.4.1
+- scikit-learn >= 1.3.2
+- Joblib >= 1.3.2
+- Numba >= 0.59.0
 
 ## Installation
-To install this package, clone the repository and install the dependencies listed in `requirements.txt`. 
-Ensure you have Python 3.10 or newer.
+
+Install the package using pip:
 
 ```bash
-git clone https://bitbucket.org/ipazia1/scikit-xml.git
-cd scikit-xml
-pip install -r requirements.txt
+pip install skxml
 ```
 
-# Usage
-Here is a quick example of how to use the `precision_at_k_score` function with dense numpy arrays:
+Or, to install from source:
+
+```bash
+git clone https://github.com/CarloNicolini/scikit-xml.git
+cd scikit-xml
+pip install -e .
+```
+
+## Quick Start
+
+### Basic Usage
+
+Here's a simple example of computing Precision@k:
 
 ```python
 import numpy as np
-from skxml import precision_at_k_score
+from skxml import precision_at_k
 
-# Example ground truth and predictions
+# Ground truth labels (binary matrix)
 y_true = np.array([[1, 0, 1], [0, 1, 1]])
+
+# Predicted scores
 y_pred = np.array([[0.8, 0.2, 0.4], [0.1, 0.6, 0.8]])
 
-# Compute precision at k=2
-precision = precision_at_k_score(y_true, y_pred, k=2)
+# Compute Precision@2
+precision = precision_at_k(y_true, y_pred, k=2)
 print(f"Precision@2: {precision}")
 ```
 
+### Using with Scikit-Learn
+
+The package provides scorers compatible with scikit-learn's model selection tools:
+
+```python
+from sklearn.model_selection import cross_validate
+from skxml import precision_at_k_scorer
+
+# Use with cross-validation
+scores = cross_validate(
+    model, X, y,
+    scoring={'precision@5': precision_at_k_scorer(k=5)}
+)
+```
+
+### Available Metrics
+
+- `precision_at_k`: Precision at top-k predictions
+- `recall_at_k`: Recall at top-k predictions
+- `map_at_k`: Mean Average Precision at top-k
+- `ndcg_at_k`: Normalized Cumulative Discount Gain at top-k
+- `psprecision_at_k_scorer`: Propensity-scored Precision@k
+- `psrecall_at_k_scorer`: Propensity-scored Recall@k
+- `psf1_at_k_scorer`: Propensity-scored F1@k
+
+## Documentation
+
+For detailed documentation and API reference, see the docstrings in the source code.
+
 ## Contributing
-Contributions are welcome! Please submit a pull request or open an issue if you have suggestions for improvements or have identified bugs.
+
+Contributions are welcome! Please feel free to submit issues or pull requests to improve the package.
 
 ## License
-This project is licensed under the MIT License - see the LICENSE file for details.
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.

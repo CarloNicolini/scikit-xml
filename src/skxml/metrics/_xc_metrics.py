@@ -120,15 +120,7 @@ def compatible_shapes(x: SparseOrDenseLike | dict, y: SparseOrDenseLike | dict) 
     Returns:
     - bool: True if shapes are compatible, False otherwise.
     """
-    if x.ndim!=2 or y.ndim!=2:
-        return False
-    # Check for sparse or dense compatibility
-    if (sp.issparse(x) and sp.issparse(y)) or (
-        isinstance(x, np.ndarray) and isinstance(y, np.ndarray)
-    ):
-        return (x.shape == y.shape)
-
-    # Handling dict cases more explicitly for clarity
+    # Check for dict types first (they don't have ndim attribute)
     if isinstance(x, dict) and isinstance(y, dict):
         # Ensure both dicts have `indices` and `scores` and compare their first dimension
         return len(x.get("indices", [])) == len(y.get("indices", [])) and len(
@@ -138,6 +130,18 @@ def compatible_shapes(x: SparseOrDenseLike | dict, y: SparseOrDenseLike | dict) 
         return len(x.get("indices", [])) == len(x.get("scores", [])) == y.shape[0]
     elif isinstance(y, dict):
         return len(y.get("indices", [])) == len(y.get("scores", [])) == x.shape[0]
+
+    # Check ndim for non-dict types
+    if not hasattr(x, "ndim") or not hasattr(y, "ndim"):
+        return False
+    if x.ndim != 2 or y.ndim != 2:
+        return False
+
+    # Check for sparse or dense compatibility
+    if (sp.issparse(x) and sp.issparse(y)) or (
+        isinstance(x, np.ndarray) and isinstance(y, np.ndarray)
+    ):
+        return x.shape == y.shape
 
     # Handling mixed sparse/dense cases by comparing the first dimension
     return x.shape[0] == y.shape[0]
@@ -198,9 +202,9 @@ def _get_top_k_dict(X: dict, k: int = 5, sort_values: bool = False):
     """
     indices = X["indices"]
     scores = X["scores"]
-    assert compatible_shapes(
-        indices, scores
-    ), f"Dimension mis-match: expected array of shape {indices.shape} found {scores.shape}"
+    assert compatible_shapes(indices, scores), (
+        f"Dimension mis-match: expected array of shape {indices.shape} found {scores.shape}"
+    )
     assert scores.shape[1] >= k, f"Number of elements in X is < {k}"
     # assumes indices are already sorted by the user
     if sort_values:

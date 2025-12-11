@@ -179,7 +179,7 @@ def _get_topk_from_array(X: ArrayLike, k: int = 5, sort_values: bool = False):
     # indices are given
     assert X.shape[1] >= k, f"Number of elements in X is < {k}"
     if np.issubdtype(X.dtype, np.integer):
-        assert sorted, "sorted must be true with indices"
+        assert sort_values, "sort_values must be true with indices"
         indices = X[:, :k] if X.shape[1] > k else X
         return indices
     # values are given

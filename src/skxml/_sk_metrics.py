@@ -25,6 +25,28 @@ from skxml._xc_metrics import (
 )
 
 
+def _validate_k(k: int, num_labels: int) -> None:
+    """
+    Validate that k is a positive integer and not greater than num_labels.
+
+    Parameters
+    ----------
+    k : int
+        The k value to validate
+    num_labels : int
+        The maximum allowed value for k
+
+    Raises
+    ------
+    ValueError
+        If k is not positive or exceeds num_labels
+    """
+    if k <= 0:
+        raise ValueError(f"k must be positive, got {k}")
+    if k > num_labels:
+        raise ValueError(f"k ({k}) cannot exceed number of labels ({num_labels})")
+
+
 def precision_at_k(
     y_true: SparseOrDenseLike,
     y_pred: SparseOrDenseLike,
@@ -119,8 +141,11 @@ def map_at_k(
         return np.mean(
             [
                 _psprecision_helper(
-                    X=y_pred, true_labels=y_true, k=i, sort_values=sort_values,
-                    inv_psp=propensity_array
+                    X=y_pred,
+                    true_labels=y_true,
+                    k=i,
+                    sort_values=sort_values,
+                    inv_psp=propensity_array,
                 )
                 for i in range(1, k + 1)
             ]
@@ -169,14 +194,17 @@ def f1_at_k(
     propensity_coeff:
         A tuple with two elements representing the propensity coefficients
     sort_values:
-        whether to s
+        whether to sort values
     beta: to compute beta-F1 as (1+beta^2)*P*R/(beta^2* (P+R))
     """
     p = precision_at_k(
         y_true, y_pred, k, propensity_array, propensity_coeff, sort_values
     )
     r = recall_at_k(y_true, y_pred, k, propensity_array, propensity_coeff, sort_values)
-    return ((1.0 + beta**2) * p * r) / (beta**2 * p + r)
+    denominator = beta**2 * p + r
+    if denominator == 0:
+        return 0.0
+    return ((1.0 + beta**2) * p * r) / denominator
 
 
 def recall_at_k(

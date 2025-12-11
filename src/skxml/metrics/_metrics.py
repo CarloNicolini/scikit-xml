@@ -356,9 +356,6 @@ def compute_metrics(
                 all_metrics[f"ncdg@{k}"] = ndcg_at_k_score(
                     y_true=y_true, y_pred=y_score, k=k
                 )
-                all_metrics[f"ncdg@{k}"] = ndcg_at_k_score(
-                    y_true=y_true, y_pred=y_score, k=k
-                )
                 all_metrics[f"precision@{k}"] = precision_at_k_score(
                     y_true=y_true, y_pred=y_score, k=k
                 )
