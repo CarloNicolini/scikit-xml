@@ -1,3 +1,5 @@
+![skxml-logo](skxml-logo.png)
+
 # SciKit-XML
 
 Advanced evaluation metrics for extreme multilabel classification and ranking tasks in scikit-learn.
